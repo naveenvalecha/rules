@@ -25,21 +25,28 @@ use Drupal\rules\Core\RulesActionBase;
  *     "value" = @ContextDefinition("any",
  *       label = @Translation("Value"),
  *       description = @Translation("The new value to set for the specified data."),
+ *       default_value = NULL,
  *       required = FALSE
  *     )
  *   }
  * )
+ *
  * @todo Add various input restrictions: selector on 'data'.
  * @todo 'allow NULL' for both 'data' and 'value'?
  */
 class DataSet extends RulesActionBase {
 
   /**
-   * {@inheritdoc}
+   * Executes the Plugin.
+   *
+   * @param mixed $data
+   *   Original value of an element which is being updated.
+   * @param mixed $value
+   *   A new value which is being set to an element identified by data selector.
    */
-  public function execute() {
+  protected function doExecute($data, $value) {
     $typed_data = $this->getContext('data')->getContextData();
-    $typed_data->setValue($this->getContextValue('value'));
+    $typed_data->setValue($value);
   }
 
   /**

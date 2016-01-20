@@ -9,10 +9,10 @@ namespace Drupal\Tests\rules\Unit;
 
 use Drupal\Core\Condition\ConditionManager;
 use Drupal\Core\Plugin\Context\ContextDefinitionInterface;
-use Drupal\Core\Plugin\Context\ContextInterface;
 use Drupal\rules\Context\DataProcessorInterface;
 use Drupal\rules\Context\ContextConfig;
 use Drupal\rules\Context\DataProcessorManager;
+use Drupal\rules\Engine\ExecutionStateInterface;
 use Drupal\rules\Plugin\RulesExpression\RulesCondition;
 use Drupal\rules\Core\RulesConditionInterface;
 use Drupal\Tests\UnitTestCase;
@@ -93,23 +93,22 @@ class RulesConditionTest extends UnitTestCase {
    * Tests that context values get data processed with processor mappings.
    */
   public function testDataProcessor() {
+    $this->conditionManager->createInstance('test_condition', ['negate' => FALSE])
+      ->willReturn($this->trueCondition->reveal())
+      ->shouldBeCalledTimes(1);
+
     $condition = new RulesCondition([
-        'condition_id' => 'test_condition',
-      ] + ContextConfig::create()
+      'condition_id' => 'test_condition',
+    ] + ContextConfig::create()
         // We don't care about the data processor plugin name and
         // configuration since we will use a mock anyway.
         ->process('test', 'foo', [])
         ->toArray(),
     '', [], $this->conditionManager->reveal(), $this->processorManager->reveal());
 
-    // Build some mocked context and definitions for our mock condition.
-    $context = $this->prophesize(ContextInterface::class);
-
-    $condition->setContext('test', $context->reveal());
-
     $this->trueCondition->getContextDefinitions()->willReturn([
       'test' => $this->prophesize(ContextDefinitionInterface::class)->reveal(),
-    ])->shouldBeCalledTimes(2);
+    ])->shouldBeCalledTimes(1);
 
     $this->trueCondition->getProvidedContextDefinitions()
       ->willReturn([])
@@ -122,15 +121,7 @@ class RulesConditionTest extends UnitTestCase {
 
     // The outcome of the data processor needs to get set on the condition.
     $this->trueCondition->setContextValue('test', 'new_value')->shouldBeCalledTimes(1);
-
     $this->trueCondition->refineContextDefinitions()->shouldBeCalledTimes(1);
-
-    $this->conditionManager->createInstance('test_condition', ['negate' => FALSE])
-      ->willReturn($this->trueCondition->reveal())
-      ->shouldBeCalledTimes(1);
-    $this->conditionManager->createInstance('test_condition')
-      ->willReturn($this->trueCondition->reveal())
-      ->shouldBeCalledTimes(1);
 
     $data_processor = $this->prophesize(DataProcessorInterface::class);
     $data_processor->process('old_value', Argument::any())
@@ -141,34 +132,36 @@ class RulesConditionTest extends UnitTestCase {
       ->willReturn($data_processor->reveal())
       ->shouldBeCalledTimes(1);
 
-    $this->assertTrue($condition->execute());
+    // Build some mocked execution state.
+    $state = $this->prophesize(ExecutionStateInterface::class);
+    $prophecy = $state->getVariable('test');
+    /** @var \Prophecy\Prophecy\MethodProphecy $prophecy */
+    $prophecy->willReturn('old_value');
+
+    $this->assertTrue($condition->executeWithState($state->reveal()));
   }
 
   /**
    * Tests that negating a condition works.
    */
   public function testNegation() {
-    $this->conditionManager->createInstance('test_condition', ['negate' => TRUE])
-      ->willReturn($this->trueCondition->reveal())
-      ->shouldBeCalledTimes(1);
-
-    $this->conditionManager->createInstance('test_condition')
-      ->willReturn($this->trueCondition->reveal())
-      ->shouldBeCalledTimes(1);
-
-    // Create a condition wich is negated.
-    $conditionExpression = new RulesCondition([
-      'condition_id' => 'test_condition',
-      'negate' => TRUE,
-    ], '', [], $this->conditionManager->reveal(), $this->processorManager->reveal());
-
     $this->trueCondition->getContextDefinitions()->willReturn([]);
     $this->trueCondition->refineContextDefinitions()->shouldBeCalledTimes(1);
     $this->trueCondition->getProvidedContextDefinitions()
       ->willReturn([])
       ->shouldBeCalledTimes(1);
 
-    $this->assertFalse($conditionExpression->execute());
+    $this->conditionManager->createInstance('test_condition', ['negate' => TRUE])
+      ->willReturn($this->trueCondition->reveal())
+      ->shouldBeCalledTimes(1);
+
+    // Create a condition which is negated.
+    $condition_expression = new RulesCondition([
+      'condition_id' => 'test_condition',
+      'negate' => TRUE,
+    ], '', [], $this->conditionManager->reveal(), $this->processorManager->reveal());
+
+    $this->assertFalse($condition_expression->execute());
   }
 
 }

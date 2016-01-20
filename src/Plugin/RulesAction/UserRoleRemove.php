@@ -8,6 +8,7 @@
 namespace Drupal\rules\Plugin\RulesAction;
 
 use Drupal\rules\Core\RulesActionBase;
+use Drupal\user\UserInterface;
 
 /**
  * Provides a 'Remove user role' action.
@@ -26,7 +27,6 @@ use Drupal\rules\Core\RulesActionBase;
  *     )
  *   }
  * )
- *
  */
 class UserRoleRemove extends RulesActionBase {
 
@@ -38,15 +38,14 @@ class UserRoleRemove extends RulesActionBase {
   protected $saveLater = FALSE;
 
   /**
-   * {@inheritdoc}
+   * Remove role from a user.
+   *
+   * @param \Drupal\user\UserInterface $account
+   *   User object the roles should be removed from.
+   * @param \Drupal\user\RoleInterface[] $roles
+   *   Array of user roles.
    */
-  public function execute() {
-
-    /** @var \Drupal\user\Entity\User $account */
-    $account = $this->getContextValue('user');
-
-    /** @var \Drupal\user\RoleInterface $roles */
-    $roles = $this->getContextValue('roles');
+  protected function doExecute(UserInterface $account, array $roles) {
     foreach ($roles as $role) {
       // Check if user has role.
       if ($account->hasRole($role->id())) {
@@ -69,5 +68,5 @@ class UserRoleRemove extends RulesActionBase {
     }
     return [];
   }
-}
 
+}

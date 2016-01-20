@@ -28,11 +28,13 @@ use Drupal\rules\Core\RulesActionBase;
  *     "unique" = @ContextDefinition("boolean",
  *       label = @Translation("Enforce uniqueness"),
  *       description = @Translation("Only add the item to the list if it is not yet contained."),
+ *       default_value = FALSE,
  *       required = FALSE
  *     ),
  *     "pos" = @ContextDefinition("string",
  *       label = @Translation("Insert position"),
  *       description = @Translation("Position to insert the item."),
+ *       default_value = "end",
  *       required = FALSE
  *     )
  *   }
@@ -44,22 +46,32 @@ use Drupal\rules\Core\RulesActionBase;
 class DataListItemAdd extends RulesActionBase {
 
   /**
-   * {@inheritdoc}
+   * Add an item to a list.
+   *
+   * @param array $list
+   *   A list to which an item is added.
+   * @param mixed $item
+   *   An item being added to the list.
+   * @param bool $unique
+   *   (optional) Whether or not we can add duplicate items.
+   * @param string $position
+   *   (optional) Determines if item will be added at beginning or end.
+   *   Allowed values:
+   *   - "start": Add to beginning of the list.
+   *   - "end": Add to end of the list.
    */
-  public function execute() {
-    $list = $this->getContextValue('list');
-    $item = $this->getContextValue('item');
-    $position = ($this->getContextValue('pos') ? $this->getContextValue('pos') : 'end');
-    $unique = ($this->getContextValue('unique') ? $this->getContextValue('unique') : FALSE);
+  protected function doExecute($list, $item, $unique = FALSE, $position = 'end') {
     // Optionally, only add the list item if it is not yet contained.
     if (!((bool) $unique && in_array($item, $list))) {
-      if ($position === 'start' ) {
+      if ($position === 'start') {
         array_unshift($list, $item);
       }
       else {
         $list[] = $item;
       }
     }
+
     $this->setContextValue('list', $list);
   }
+
 }

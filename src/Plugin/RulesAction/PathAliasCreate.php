@@ -32,6 +32,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *     "language" = @ContextDefinition("language",
  *       label = @Translation("Language"),
  *       description = @Translation("If specified, the language for which the path alias applies."),
+ *       default_value = NULL,
  *       required = FALSE
  *     )
  *   }
@@ -78,12 +79,16 @@ class PathAliasCreate extends RulesActionBase implements ContainerFactoryPluginI
   }
 
   /**
-   * {@inheritdoc}
+   * Creates an alias for an existing path.
+   *
+   * @param string $source
+   *   The existing path that should be aliased.
+   * @param string $alias
+   *   The alias path that should be created.
+   * @param \Drupal\Core\Language\LanguageInterface $language
+   *   (optional) The language.
    */
-  public function execute() {
-    $source = $this->getContextValue('source');
-    $alias = $this->getContextValue('alias');
-    $language = $this->getContextValue('language');
+  protected function doExecute($source, $alias, LanguageInterface $language = NULL) {
     $langcode = isset($language) ? $language->getId() : LanguageInterface::LANGCODE_NOT_SPECIFIED;
     $this->aliasStorage->save($source, $alias, $langcode);
   }

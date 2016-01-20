@@ -12,7 +12,7 @@ use Drupal\Component\Annotation\Plugin;
 /**
  * Defines a Rules Action annotation object.
  *
- * Plugin Namespace: Plugin\RulesAction
+ * Plugin Namespace: Plugin\RulesAction.
  *
  * For a working example, see \Drupal\rules\Plugin\RulesAction\BanIP
  *
@@ -51,6 +51,14 @@ class RulesAction extends Plugin {
   public $category;
 
   /**
+   * The permission required to access the configuration UI for this plugin.
+   *
+   * @var string[]
+   *   Array of permission string as declared in a *.permissions.yml file.
+   */
+  public $configure_permission;
+
+  /**
    * Defines the used context of the action plugin.
    *
    * Array keys are the names of the contexts and values context definitions.
@@ -67,4 +75,5 @@ class RulesAction extends Plugin {
    * @var \Drupal\Core\Annotation\ContextDefinition[]
    */
   public $provides = [];
+
 }

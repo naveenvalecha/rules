@@ -27,6 +27,7 @@ use Drupal\rules\Core\RulesActionBase;
  *     "repeat" = @ContextDefinition("boolean",
  *       label = @Translation("Repeat message"),
  *       description = @Translation("If disabled and the message has been already shown, then the message won't be repeated."),
+ *       default_value = NULL,
  *       required = FALSE
  *     )
  *   }
@@ -37,14 +38,20 @@ use Drupal\rules\Core\RulesActionBase;
 class SystemMessage extends RulesActionBase {
 
   /**
-   * {@inheritdoc}
+   * Set a system message.
+   *
+   * @param string $message
+   *   Message string that should be set.
+   * @param string $type
+   *   Type of the message.
+   * @param bool $repeat
+   *   (optional) TRUE if the message should be repeated.
    */
-  public function execute() {
+  protected function doExecute($message, $type, $repeat) {
     // @todo Should we do the sanitization somewhere else? D7 had the sanitize
     // flag in the context definition.
-    $message = SafeMarkup::checkPlain($this->getContextValue('message'));
-    $type = $this->getContextValue('type');
-    $repeat = (bool) $this->getContextValue('repeat');
+    $message = SafeMarkup::checkPlain($message);
+    $repeat = (bool) $repeat;
     drupal_set_message($message, $type, $repeat);
   }
 

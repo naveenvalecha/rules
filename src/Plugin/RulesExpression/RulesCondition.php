@@ -13,7 +13,7 @@ use Drupal\rules\Context\ContextHandlerTrait;
 use Drupal\rules\Context\DataProcessorManager;
 use Drupal\rules\Engine\ConditionExpressionInterface;
 use Drupal\rules\Engine\ExpressionBase;
-use Drupal\rules\Engine\RulesStateInterface;
+use Drupal\rules\Engine\ExecutionStateInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -24,7 +24,8 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *
  * @RulesExpression(
  *   id = "rules_condition",
- *   label = @Translation("An executable condition.")
+ *   label = @Translation("Condition"),
+ *   form_class = "\Drupal\rules\Form\Expression\ConditionForm"
  * )
  */
 class RulesCondition extends ExpressionBase implements ConditionExpressionInterface, ContainerFactoryPluginInterface {
@@ -49,16 +50,16 @@ class RulesCondition extends ExpressionBase implements ConditionExpressionInterf
    *   The plugin ID for the plugin instance.
    * @param mixed $plugin_definition
    *   The plugin implementation definition.
-   * @param \Drupal\Core\Condition\ConditionManager $conditionManager
+   * @param \Drupal\Core\Condition\ConditionManager $condition_manager
    *   The condition manager.
    * @param \Drupal\rules\Context\DataProcessorManager $processor_manager
    *   The data processor plugin manager.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, ConditionManager $conditionManager, DataProcessorManager $processor_manager) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, ConditionManager $condition_manager, DataProcessorManager $processor_manager) {
     // Make sure defaults are applied.
     $configuration += $this->defaultConfiguration();
     parent::__construct($configuration, $plugin_id, $plugin_definition);
-    $this->conditionManager = $conditionManager;
+    $this->conditionManager = $condition_manager;
     $this->processorManager = $processor_manager;
   }
 
@@ -92,7 +93,7 @@ class RulesCondition extends ExpressionBase implements ConditionExpressionInterf
     // If the plugin id has been set already, keep it if not specified.
     if (isset($this->configuration['condition_id'])) {
       $configuration += [
-        'condition_id' => $this->configuration['condition_id']
+        'condition_id' => $this->configuration['condition_id'],
       ];
     }
     return parent::setConfiguration($configuration);
@@ -101,7 +102,7 @@ class RulesCondition extends ExpressionBase implements ConditionExpressionInterf
   /**
    * {@inheritdoc}
    */
-  public function executeWithState(RulesStateInterface $state) {
+  public function executeWithState(ExecutionStateInterface $state) {
     $condition = $this->conditionManager->createInstance($this->configuration['condition_id'], [
       'negate' => $this->configuration['negate'],
     ]);
@@ -148,6 +149,27 @@ class RulesCondition extends ExpressionBase implements ConditionExpressionInterf
       $this->contextDefinitions = $condition->getContextDefinitions();
     }
     return $this->contextDefinitions;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getLabel() {
+    if (!empty($this->configuration['condition_id'])) {
+      $definition = $this->conditionManager->getDefinition($this->configuration['condition_id']);
+      return $this->t('Condition: @label', ['@label' => $definition['label']]);
+    }
+    return parent::getLabel();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getFormHandler() {
+    if (isset($this->pluginDefinition['form_class'])) {
+      $class_name = $this->pluginDefinition['form_class'];
+      return new $class_name($this, $this->conditionManager);
+    }
   }
 
 }

@@ -26,10 +26,12 @@ class ConfigEntityDefaultsTest extends RulesDrupalTestBase {
    *
    * @var array
    */
-  public static $modules = ['rules', 'rules_test_default_component', 'user', 'system'];
+  public static $modules = ['rules', 'rules_test_default_component', 'user',
+    'system',
+  ];
 
   /**
-   * Disable strict config schema checking for now
+   * Disable strict config schema checking for now.
    *
    * @todo: Fix once config schema has been improved.
    *
@@ -38,19 +40,19 @@ class ConfigEntityDefaultsTest extends RulesDrupalTestBase {
   protected $strictConfigSchema = FALSE;
 
   /**
-   * The entity manager.
+   * The entity type manager.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityManager;
+  protected $entityTypeManager;
 
   /**
    * {@inheritdoc}
    */
   public function setUp() {
     parent::setUp();
-    $this->entityManager = $this->container->get('entity.manager');
-    $this->storage = $this->entityManager->getStorage('rules_component');
+    $this->entityTypeManager = $this->container->get('entity_type.manager');
+    $this->storage = $this->entityTypeManager->getStorage('rules_component');
     $this->installConfig(['rules_test_default_component']);
   }
 
@@ -60,21 +62,18 @@ class ConfigEntityDefaultsTest extends RulesDrupalTestBase {
   public function testDefaultComponents() {
     $config_entity = $this->storage->load('rules_test_default_component');
 
-    /** @var $config_entity RulesComponent */
-    $expression = $config_entity
-      ->getExpression();
+    $user = $this->entityTypeManager->getStorage('user')
+      ->create(['mail' => 'test@example.com']);
 
-    $user = $this->entityManager->getStorage('user')
-      ->create(array('mail' => 'test@example.com'));
-
-    $expression
+    $config_entity
+      ->getComponent()
       ->setContextValue('user', $user)
       ->execute();
 
     // Test that the action was executed correctly.
     $messages = drupal_get_messages();
     $message_string = isset($messages['status'][0]) ? (string) $messages['status'][0] : NULL;
-    $this->assertEqual($message_string, 'test@example.com');
+    $this->assertEquals($message_string, 'test@example.com');
   }
 
 }

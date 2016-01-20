@@ -48,10 +48,7 @@ class ContextDefinition extends ContextDefinitionCore implements ContextDefiniti
   protected $assignmentRestriction = NULL;
 
   /**
-   * Exports the definition as an array.
-   *
-   * @return array
-   *   An array with values for all definition keys.
+   * {@inheritdoc}
    */
   public function toArray() {
     $values = [];
@@ -75,16 +72,16 @@ class ContextDefinition extends ContextDefinitionCore implements ContextDefiniti
    *   The created definition.
    */
   public static function createFromArray($values) {
-    if (isset($values['class']) && !in_array('Drupal\rules\Context\ContextDefinitionInterface', class_implements($values['class']))) {
-      throw new \Exception('ContextDefinition class must implement \Drupal\rules\Context\ContextDefinitionInterface.');
+    if (isset($values['class']) && !in_array(ContextDefinitionInterface::class, class_implements($values['class']))) {
+      throw new \Exception('ContextDefinition class must implement ' . ContextDefinitionInterface::class . '.');
     }
     // Default to Rules context definition class.
-    $values['class'] = isset($values['class']) ? $values['class'] : '\Drupal\rules\Context\ContextDefinition';
-    if (!isset($values['type'])) {
-      $values['type'] = 'any';
+    $values['class'] = isset($values['class']) ? $values['class'] : ContextDefinition::class;
+    if (!isset($values['value'])) {
+      $values['value'] = 'any';
     }
 
-    $definition = $values['class']::create($values['type']);
+    $definition = $values['class']::create($values['value']);
     foreach (array_intersect_key(static::$nameMap, $values) as $key => $name) {
       $definition->$name = $values[$key];
     }

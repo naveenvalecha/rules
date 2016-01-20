@@ -51,7 +51,7 @@ class UserHasRoleTest extends RulesEntityIntegrationTestBase {
     $authenticated = $this->prophesize(RoleInterface::class);
     $authenticated->id()->willReturn('authenticated');
     $editor = $this->prophesize(RoleInterface::class);
-    $editor->id()->willReturn('authenticated');
+    $editor->id()->willReturn('editor');
     $administrator = $this->prophesize(RoleInterface::class);
     $administrator->id()->willReturn('administrator');
 
@@ -86,6 +86,30 @@ class UserHasRoleTest extends RulesEntityIntegrationTestBase {
     $this->condition->setContextValue('roles', [$administrator->reveal()]);
     $this->condition->setContextValue('operation', 'OR');
     $this->assertFalse($this->condition->evaluate());
+  }
+
+  /**
+   * Test the behavior with unsupported operations.
+   *
+   * @covers ::execute
+   *
+   * @expectedException \InvalidArgumentException
+   */
+  public function testInvalidOperationException() {
+    // Set-up a mock object with roles 'authenticated' and 'editor', but not
+    // 'administrator'.
+    $account = $this->prophesizeEntity(UserInterface::class);
+    $account->getRoles()->willReturn(['authenticated', 'editor']);
+
+    $this->condition->setContextValue('user', $account->reveal());
+
+    $authenticated = $this->prophesize(RoleInterface::class);
+    $authenticated->id()->willReturn('authenticated');
+
+    // Now test INVALID as operation. An exception must be thrown.
+    $this->condition->setContextValue('roles', [$authenticated->reveal()]);
+    $this->condition->setContextValue('operation', 'INVALID');
+    $this->condition->evaluate();
   }
 
 }

@@ -2,21 +2,18 @@
 
 /**
  * @file
- * Contains \Drupal\rules\Engine\ExpressionBase
+ * Contains \Drupal\rules\Engine\ExpressionBase.
  */
 
 namespace Drupal\rules\Engine;
 
-use Drupal\Core\Plugin\ContextAwarePluginBase;
+use Drupal\Core\Plugin\PluginBase;
 use Drupal\rules\Context\ContextDefinition;
-use Drupal\rules\Context\ContextProviderTrait;
 
 /**
  * Base class for rules actions.
  */
-abstract class ExpressionBase extends ContextAwarePluginBase implements ExpressionInterface {
-
-  use ContextProviderTrait;
+abstract class ExpressionBase extends PluginBase implements ExpressionInterface {
 
   /**
    * The plugin configuration.
@@ -24,6 +21,20 @@ abstract class ExpressionBase extends ContextAwarePluginBase implements Expressi
    * @var array
    */
   protected $configuration;
+
+  /**
+   * The root expression if this object is nested.
+   *
+   * @var \Drupal\rules\Engine\ExpressionInterface
+   */
+  protected $root;
+
+  /**
+   * The config entity this expression is associated with, if any.
+   *
+   * @var string
+   */
+  protected $configEntityId;
 
   /**
    * Overrides the parent constructor to populate context definitions.
@@ -70,8 +81,8 @@ abstract class ExpressionBase extends ContextAwarePluginBase implements Expressi
    * Executes a rules expression.
    */
   public function execute() {
-    $contexts = $this->getContexts();
-    $state = new RulesState($contexts);
+    // If there is no state given, we have to assume no required context.
+    $state = ExecutionState::create();
     $result = $this->executeWithState($state);
     // Save specifically registered variables in the end after execution.
     $state->autoSave();
@@ -114,6 +125,54 @@ abstract class ExpressionBase extends ContextAwarePluginBase implements Expressi
    */
   public function calculateDependencies() {
     return [];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getFormHandler() {
+    if (isset($this->pluginDefinition['form_class'])) {
+      $class_name = $this->pluginDefinition['form_class'];
+      return new $class_name($this);
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getRoot() {
+    if (isset($this->root)) {
+      return $this->root->getRoot();
+    }
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setRoot(ExpressionInterface $root) {
+    $this->root = $root;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getConfigEntityId() {
+    return $this->configEntityId;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setConfigEntityId($id) {
+    $this->configEntityId = $id;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getLabel() {
+    return $this->pluginDefinition['label'];
   }
 
 }

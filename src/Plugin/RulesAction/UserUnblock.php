@@ -7,10 +7,8 @@
 
 namespace Drupal\rules\Plugin\RulesAction;
 
-use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\rules\Core\RulesActionBase;
-use Drupal\Core\Session\SessionManagerInterface;
-use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\user\UserInterface;
 
 /**
  * Provides "Unblock User" action.
@@ -38,12 +36,12 @@ class UserUnblock extends RulesActionBase {
   protected $saveLater = FALSE;
 
   /**
-   * {@inheritdoc}
+   * Unblock a user.
+   *
+   * @param \Drupal\user\UserInterface $user
+   *   The user to unblock.
    */
-  public function execute() {
-    /** @var $user \Drupal\user\UserInterface */
-    $user = $this->getContextValue('user');
-
+  protected function doExecute(UserInterface $user) {
     // Do nothing if user is anonymous or isn't blocked.
     if ($user->isAuthenticated() && $user->isBlocked()) {
       $user->activate();

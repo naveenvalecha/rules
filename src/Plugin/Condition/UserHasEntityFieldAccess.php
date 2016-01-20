@@ -9,8 +9,9 @@ namespace Drupal\rules\Plugin\Condition;
 
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\rules\Core\RulesConditionBase;
-use Drupal\Core\Language\Language;
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Session\AccountInterface;
+use Drupal\Core\Entity\ContentEntityInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -41,11 +42,11 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class UserHasEntityFieldAccess extends RulesConditionBase implements ContainerFactoryPluginInterface {
 
   /**
-   * The entity manager.
+   * The entity type manager.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityManager;
+  protected $entityTypeManager;
 
   /**
    * Constructs a UserHasEntityFieldAccess object.
@@ -56,12 +57,12 @@ class UserHasEntityFieldAccess extends RulesConditionBase implements ContainerFa
    *   The plugin ID for the plugin instance.
    * @param mixed $plugin_definition
    *   The plugin implementation definition.
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, EntityManagerInterface $entity_manager) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, EntityTypeManagerInterface $entity_type_manager) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
-    $this->entityManager = $entity_manager;
+    $this->entityTypeManager = $entity_type_manager;
   }
 
   /**
@@ -72,29 +73,39 @@ class UserHasEntityFieldAccess extends RulesConditionBase implements ContainerFa
       $configuration,
       $plugin_id,
       $plugin_definition,
-      $container->get('entity.manager')
+      $container->get('entity_type.manager')
     );
   }
 
   /**
-   * {@inheritdoc}
+   * Evaluate if the user has access to the field of an entity.
+   *
+   * @param \Drupal\Core\Entity\ContentEntityInterface $entity
+   *   The entity to check access on.
+   * @param string $field
+   *   The name of the field to check access on.
+   * @param string $operation
+   *   The operation access should be checked for. Usually one of "view" or
+   *   "edit".
+   * @param \Drupal\Core\Session\AccountInterface $user
+   *   The user account to test access against.
+   *
+   * @return bool
+   *   TRUE if the user has access to the field on the entity, FALSE otherwise.
    */
-  public function evaluate() {
-    $entity = $this->getContextValue('entity');
-    $field = $this->getContextValue('field');
+  protected function doEvaluate(ContentEntityInterface $entity, $field, $operation, AccountInterface $user) {
     if (!$entity->hasField($field)) {
       return FALSE;
     }
 
-    $operation = $this->getContextValue('operation');
-    $account = $this->getContextValue('user');
-    $access = $this->entityManager->getAccessControlHandler($entity->getEntityTypeId());
-    if (!$access->access($entity, $operation, Language::LANGCODE_DEFAULT, $account)) {
+    $access = $this->entityTypeManager->getAccessControlHandler($entity->getEntityTypeId());
+    if (!$access->access($entity, $operation, $user)) {
       return FALSE;
     }
 
     $definition = $entity->getFieldDefinition($field);
     $items = $entity->get($field);
-    return $access->fieldAccess($operation, $definition, $account, $items);
+    return $access->fieldAccess($operation, $definition, $user, $items);
   }
+
 }

@@ -14,7 +14,7 @@ use Drupal\rules\Context\DataProcessorManager;
 use Drupal\rules\Core\RulesActionManagerInterface;
 use Drupal\rules\Engine\ActionExpressionInterface;
 use Drupal\rules\Engine\ExpressionBase;
-use Drupal\rules\Engine\RulesStateInterface;
+use Drupal\rules\Engine\ExecutionStateInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -25,7 +25,8 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *
  * @RulesExpression(
  *   id = "rules_action",
- *   label = @Translation("An executable action.")
+ *   label = @Translation("Action"),
+ *   form_class = "\Drupal\rules\Form\Expression\ActionForm"
  * )
  */
 class RulesAction extends ExpressionBase implements ContainerFactoryPluginInterface, ActionExpressionInterface {
@@ -79,7 +80,7 @@ class RulesAction extends ExpressionBase implements ContainerFactoryPluginInterf
     // If the plugin id has been set already, keep it if not specified.
     if (isset($this->configuration['action_id'])) {
       $configuration += [
-        'action_id' => $this->configuration['action_id']
+        'action_id' => $this->configuration['action_id'],
       ];
     }
     return parent::setConfiguration($configuration);
@@ -88,7 +89,7 @@ class RulesAction extends ExpressionBase implements ContainerFactoryPluginInterf
   /**
    * {@inheritdoc}
    */
-  public function executeWithState(RulesStateInterface $state) {
+  public function executeWithState(ExecutionStateInterface $state) {
     $action = $this->actionManager->createInstance($this->configuration['action_id']);
 
     // We have to forward the context values from our configuration to the
@@ -133,6 +134,27 @@ class RulesAction extends ExpressionBase implements ContainerFactoryPluginInterf
       throw new ContextException(sprintf("The %s context is not a valid context.", $name));
     }
     return $definition['context'][$name];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getLabel() {
+    if (!empty($this->configuration['action_id'])) {
+      $definition = $this->actionManager->getDefinition($this->configuration['action_id']);
+      return $this->t('Action: @label', ['@label' => $definition['label']]);
+    }
+    return parent::getLabel();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getFormHandler() {
+    if (isset($this->pluginDefinition['form_class'])) {
+      $class_name = $this->pluginDefinition['form_class'];
+      return new $class_name($this, $this->actionManager);
+    }
   }
 
 }

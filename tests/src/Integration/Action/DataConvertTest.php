@@ -96,6 +96,7 @@ class DataConvertTest extends RulesIntegrationTestBase {
    * Test the behavior if nonsense context values is set.
    *
    * @covers ::execute
+   *
    * @expectedException \InvalidArgumentException
    */
   public function testInvalidValueException() {
@@ -106,6 +107,7 @@ class DataConvertTest extends RulesIntegrationTestBase {
    * Test the behavior if rounding behavior is used with non integers.
    *
    * @covers ::execute
+   *
    * @expectedException \InvalidArgumentException
    */
   public function testInvalidRoundingBehavior() {
@@ -117,11 +119,12 @@ class DataConvertTest extends RulesIntegrationTestBase {
    * Test the behavior if nonsense rounding_behaviors is set.
    *
    * @covers ::execute
+   *
    * @expectedException \InvalidArgumentException
    */
   public function testInvalidRoundingBehaviorException() {
     $value = 5.5;
-    $rounding_behavior = $this->getRandomGenerator()->name();
+    $rounding_behavior = 'invalid rounding';
     $this->executeAction($value, 'integer', $rounding_behavior);
   }
 
@@ -129,11 +132,12 @@ class DataConvertTest extends RulesIntegrationTestBase {
    * Test the behavior if nonsense target_type is set.
    *
    * @covers ::execute
+   *
    * @expectedException \InvalidArgumentException
    */
   public function testInvalidTargetTypeException() {
     $value = 5.5;
-    $target_type = $this->getRandomGenerator()->name();
+    $target_type = 'invalid type';
     $this->executeAction($value, $target_type);
   }
 
@@ -165,4 +169,5 @@ class DataConvertTest extends RulesIntegrationTestBase {
     $result = $action->getProvidedContext('conversion_result');
     return $result->getContextValue();
   }
+
 }

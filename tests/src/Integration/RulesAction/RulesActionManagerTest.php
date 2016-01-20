@@ -7,10 +7,13 @@
 
 namespace Drupal\Tests\rules\Integration\RulesAction;
 
+use Drupal\rules\Context\ContextDefinitionInterface;
 use Drupal\Tests\rules\Integration\RulesIntegrationTestBase;
 
 /**
  * Tests the Rules action manager.
+ *
+ * @group rules_actions
  */
 class RulesActionManagerTest extends RulesIntegrationTestBase {
 
@@ -23,9 +26,10 @@ class RulesActionManagerTest extends RulesIntegrationTestBase {
     foreach ($definitions as $definition) {
       if (!empty($definition['context'])) {
         foreach ($definition['context'] as $context_definition) {
-          $this->assertInstanceOf('Drupal\rules\Context\ContextDefinitionInterface', $context_definition);
+          $this->assertInstanceOf(ContextDefinitionInterface::class, $context_definition);
         }
       }
     }
   }
+
 }

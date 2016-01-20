@@ -12,7 +12,7 @@ use Drupal\Core\Plugin\PluginBase;
 use Drupal\Core\Render\BubbleableMetadata;
 use Drupal\Core\Utility\Token;
 use Drupal\rules\Context\DataProcessorInterface;
-use Drupal\rules\Engine\RulesStateInterface;
+use Drupal\rules\Engine\ExecutionStateInterface;
 use Drupal\rules\Exception\RulesEvaluationException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -27,7 +27,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class TokenProcessor extends PluginBase implements DataProcessorInterface, ContainerFactoryPluginInterface {
 
   /**
-   * The token service
+   * The token service.
    *
    * @var Token
    */
@@ -65,7 +65,7 @@ class TokenProcessor extends PluginBase implements DataProcessorInterface, Conta
   /**
    * {@inheritdoc}
    */
-  public function process($value, RulesStateInterface $rules_state) {
+  public function process($value, ExecutionStateInterface $rules_state) {
     $replacements = [];
     // The Token API requires this metadata object, but it is useless for us
     // here so we just always pass the same instance and ignore it.
@@ -74,10 +74,10 @@ class TokenProcessor extends PluginBase implements DataProcessorInterface, Conta
     // replacements are done by using the data selector logic.
     foreach ($this->tokenService->scan($value) as $var_name => $tokens) {
       foreach ($tokens as $token) {
-        // Remove the opening and closing bracket to form a data selector.
-        $data_selector = substr($token, 1, -1);
         try {
-          $replacement_data = $rules_state->applyDataSelector($data_selector);
+          // Remove the opening and closing bracket to form a property path.
+          $property_path = str_replace(':', '.', substr($token, 1, -1));
+          $replacement_data = $rules_state->fetchByPropertyPath($property_path);
           $replacements[$token] = $replacement_data->getString();
         }
         catch (RulesEvaluationException $exception) {
@@ -85,11 +85,11 @@ class TokenProcessor extends PluginBase implements DataProcessorInterface, Conta
           // token service.
           if ($rules_state->hasVariable($var_name)) {
             $variable = $rules_state->getVariable($var_name);
-            $token_type = $variable->getContextDefinition()->getDataType();
+            $token_type = $variable->getDataDefinition()->getDataType();
             // The Token system does not know about "enity:" data type prefixes,
             // so we have to remove them.
             $token_type = str_replace('entity:', '', $token_type);
-            $data = [$token_type => $variable->getContextValue()];
+            $data = [$token_type => $variable->getValue()];
             $replacements += $this->tokenService->generate($token_type, $tokens, $data, ['sanitize' => FALSE], $bubbleable_metdata);
           }
           else {

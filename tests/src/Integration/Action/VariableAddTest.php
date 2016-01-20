@@ -28,7 +28,7 @@ class VariableAddTest extends RulesIntegrationTestBase {
    * @covers ::execute
    */
   public function testExecute() {
-    $variable = $this->randomMachineName();
+    $variable = 'test string';
 
     /** @var \Drupal\rules\Plugin\RulesAction\VariableAdd $action */
     $action = $this->actionManager->createInstance('rules_variable_add');
@@ -38,4 +38,5 @@ class VariableAddTest extends RulesIntegrationTestBase {
     $result = $action->getProvidedContext('variable_added');
     $this->assertEquals($variable, $result->getContextValue());
   }
+
 }

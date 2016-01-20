@@ -7,17 +7,21 @@
 
 namespace Drupal\Tests\rules\Integration;
 
+use Drupal\Component\Uuid\Php;
 use Drupal\Core\Cache\NullBackend;
 use Drupal\Core\DependencyInjection\ClassResolverInterface;
 use Drupal\Core\DependencyInjection\ContainerBuilder;
+use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityTypeBundleInfoInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Path\AliasManagerInterface;
-use Drupal\Core\TypedData\TypedDataManager;
 use Drupal\rules\Condition\ConditionManager;
 use Drupal\rules\Context\DataProcessorManager;
 use Drupal\rules\Core\RulesActionManager;
 use Drupal\rules\Engine\ExpressionManager;
+use Drupal\rules\TypedData\TypedDataManager;
 use Drupal\Tests\UnitTestCase;
 use Prophecy\Argument;
 
@@ -37,7 +41,22 @@ abstract class RulesIntegrationTestBase extends UnitTestCase {
   protected $entityManager;
 
   /**
-   * @var \Drupal\Core\TypedData\TypedDataManager
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface|\Prophecy\Prophecy\ProphecyInterface
+   */
+  protected $entityTypeManager;
+
+  /**
+   * @var \Drupal\Core\Entity\EntityFieldManagerInterface|\Prophecy\Prophecy\ProphecyInterface
+   */
+  protected $entityFieldManager;
+
+  /**
+   * @var \Drupal\Core\Entity\EntityTypeBundleInfoInterface|\Prophecy\Prophecy\ProphecyInterface
+   */
+  protected $entityTypeBundledInfo;
+
+  /**
+   * @var \Drupal\rules\TypedData\TypedDataManagerInterface
    */
   protected $typedDataManager;
 
@@ -116,10 +135,10 @@ abstract class RulesIntegrationTestBase extends UnitTestCase {
     $this->enabledModules = new \ArrayObject();
     $this->enabledModules['rules'] = TRUE;
     $this->enabledModules['rules_test'] = TRUE;
-    $enabledModules = $this->enabledModules;
+    $enabled_modules = $this->enabledModules;
     $this->moduleHandler->moduleExists(Argument::type('string'))
-      ->will(function ($arguments) use ($enabledModules) {
-        return [$arguments[0], $enabledModules[$arguments[0]]];
+      ->will(function ($arguments) use ($enabled_modules) {
+        return [$arguments[0], $enabled_modules[$arguments[0]]];
       });
 
     // Wed don't care about alter() calls on the module handler.
@@ -151,10 +170,23 @@ abstract class RulesIntegrationTestBase extends UnitTestCase {
 
     $this->aliasManager = $this->prophesize(AliasManagerInterface::class);
 
+    // Keep the deprecated entity manager around because it is still used in a
+    // few places.
     $this->entityManager = $this->prophesize(EntityManagerInterface::class);
-    $this->entityManager->getDefinitions()->willReturn([]);
+
+    $this->entityTypeManager = $this->prophesize(EntityTypeManagerInterface::class);
+    $this->entityTypeManager->getDefinitions()->willReturn([]);
+
+    $this->entityFieldManager = $this->prophesize(EntityFieldManagerInterface::class);
+    $this->entityFieldManager->getBaseFieldDefinitions()->willReturn([]);
+
+    $this->entityTypeBundleInfo = $this->prophesize(EntityTypeBundleInfoInterface::class);
+    $this->entityTypeBundleInfo->getBundleInfo()->willReturn([]);
 
     $container->set('entity.manager', $this->entityManager->reveal());
+    $container->set('entity_type.manager', $this->entityTypeManager->reveal());
+    $container->set('entity_field.manager', $this->entityFieldManager->reveal());
+    $container->set('entity_type.bundle.info', $this->entityTypeBundleInfo->reveal());
     $container->set('path.alias_manager', $this->aliasManager->reveal());
     $container->set('plugin.manager.rules_action', $this->actionManager);
     $container->set('plugin.manager.condition', $this->conditionManager);
@@ -162,6 +194,7 @@ abstract class RulesIntegrationTestBase extends UnitTestCase {
     $container->set('plugin.manager.rules_data_processor', $this->rulesDataProcessorManager);
     $container->set('typed_data_manager', $this->typedDataManager);
     $container->set('string_translation', $this->getStringTranslationStub());
+    $container->set('uuid', new Php());
 
     \Drupal::setContainer($container);
     $this->container = $container;
@@ -201,7 +234,7 @@ abstract class RulesIntegrationTestBase extends UnitTestCase {
    * @return \Drupal\Core\TypedData\TypedDataInterface
    *   The created object.
    */
-  protected function getTypedData($data_type, $value)  {
+  protected function getTypedData($data_type, $value) {
     $definition = $this->typedDataManager->createDataDefinition($data_type);
     $data = $this->typedDataManager->create($definition);
     $data->setValue($value);
@@ -215,6 +248,7 @@ abstract class RulesIntegrationTestBase extends UnitTestCase {
    *   The interface that should be mocked, example: EntityInterface::class.
    *
    * @return \Drupal\Core\Entity\EntityInterface|\Prophecy\Prophecy\ProphecyInterface
+   *   The mocked entity.
    */
   protected function prophesizeEntity($interface) {
     $entity = $this->prophesize($interface);

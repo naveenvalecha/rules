@@ -36,24 +36,23 @@ class EventIntegrationTest extends RulesDrupalTestBase {
    */
   public function setUp() {
     parent::setUp();
-
-    $this->storage = $this->container->get('entity.manager')->getStorage('rules_reaction_rule');
+    $this->storage = $this->container->get('entity_type.manager')->getStorage('rules_reaction_rule');
   }
 
   /**
    * Test that the user login hook triggers the Rules event listener.
    */
   public function testUserLoginEvent() {
-    $rule = $this->expressionManager->createInstance('rules_reaction_rule', ['event' => 'rules_user_login']);
+    $rule = $this->expressionManager->createRule();
     $rule->addCondition('rules_test_true');
     $rule->addAction('rules_test_log',
       ContextConfig::create()
-        ->map('message', 'account:name:0:value')
+        ->map('message', 'account.name.0.value')
     );
 
     $config_entity = $this->storage->create([
       'id' => 'test_rule',
-      'expression_id' => 'rules_reaction_rule',
+      'expression_id' => 'rules_rule',
       'event' => 'rules_user_login',
       'configuration' => $rule->getConfiguration(),
     ]);
@@ -76,13 +75,13 @@ class EventIntegrationTest extends RulesDrupalTestBase {
    * Test that the user logout hook triggers the Rules event listener.
    */
   public function testUserLogoutEvent() {
-    $rule = $this->expressionManager->createInstance('rules_reaction_rule', ['event' => 'rules_user_logout']);
+    $rule = $this->expressionManager->createRule();
     $rule->addCondition('rules_test_true');
     $rule->addAction('rules_test_log');
 
     $config_entity = $this->storage->create([
       'id' => 'test_rule',
-      'expression_id' => 'rules_reaction_rule',
+      'expression_id' => 'rules_rule',
       'event' => 'rules_user_logout',
       'configuration' => $rule->getConfiguration(),
     ]);
@@ -96,6 +95,63 @@ class EventIntegrationTest extends RulesDrupalTestBase {
     $account = $this->container->get('current_user');
     // Invoke the hook manually which should trigger the rule.
     rules_user_logout($account);
+
+    // Test that the action in the rule logged something.
+    $this->assertRulesLogEntryExists('action called');
+  }
+
+  /**
+   * Test that the cron hook triggers the Rules event listener.
+   */
+  public function testCronEvent() {
+    $rule = $this->expressionManager->createRule();
+    $rule->addCondition('rules_test_true');
+    $rule->addAction('rules_test_log');
+
+    $config_entity = $this->storage->create([
+      'id' => 'test_rule',
+      'expression_id' => 'rules_rule',
+      'event' => 'rules_system_cron',
+      'configuration' => $rule->getConfiguration(),
+    ]);
+    $config_entity->save();
+
+    // Rebuild the container so that the newly configured event gets picked up.
+    $this->container->get('kernel')->rebuildContainer();
+    // The logger instance has changed, refresh it.
+    $this->logger = $this->container->get('logger.channel.rules');
+
+    // Run cron.
+    $this->container->get('cron')->run();
+
+    // Test that the action in the rule logged something.
+    $this->assertRulesLogEntryExists('action called');
+  }
+
+  /**
+   * Test that a Logger message trigger the Rules logger listener.
+   */
+  public function testSystemLoggerEvent() {
+    $rule = $this->expressionManager->createRule();
+    $rule->addCondition('rules_test_true');
+    $rule->addAction('rules_test_log');
+
+    $config_entity = $this->storage->create([
+      'id' => 'test_rule',
+      'expression_id' => 'rules_rule',
+      'event' => 'rules_system_logger_event',
+      'configuration' => $rule->getConfiguration(),
+    ]);
+    $config_entity->save();
+
+    // Rebuild the container so that the newly configured event gets picked up.
+    $this->container->get('kernel')->rebuildContainer();
+    // The logger instance has changed, refresh it.
+    $this->logger = $this->container->get('logger.channel.rules');
+
+    // Creates a logger-item, that must be dispatched as event.
+    $this->container->get('logger.factory')->get('rules_test')
+      ->notice("This message must get logged and dispatched as rules_system_logger_event");
 
     // Test that the action in the rule logged something.
     $this->assertRulesLogEntryExists('action called');

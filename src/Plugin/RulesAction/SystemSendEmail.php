@@ -7,14 +7,12 @@
 
 namespace Drupal\rules\Plugin\RulesAction;
 
-use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
-use Drupal\Core\Mail\MailManager;
+use Drupal\Core\Language\LanguageInterface;
 use Drupal\Core\Mail\MailManagerInterface;
+use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\rules\Core\RulesActionBase;
 use Psr\Log\LoggerInterface;
-use Psr\Log\LogLevel;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Drupal\Core\Language\LanguageInterface;
 
 /**
  * Provides "Send email" rules action.
@@ -40,11 +38,13 @@ use Drupal\Core\Language\LanguageInterface;
  *     "reply" = @ContextDefinition("email",
  *       label = @Translation("Reply to"),
  *       description = @Translation("The mail's reply-to address. Leave it empty to use the site-wide configured address."),
+ *       default_value = NULL,
  *       required = FALSE,
  *     ),
  *     "language" = @ContextDefinition("language",
  *       label = @Translation("Language"),
  *       description = @Translation("If specified, the language used for getting the mail message and subject."),
+ *       default_value = NULL,
  *       required = FALSE,
  *     ),
  *   }
@@ -56,6 +56,8 @@ use Drupal\Core\Language\LanguageInterface;
 class SystemSendEmail extends RulesActionBase implements ContainerFactoryPluginInterface {
 
   /**
+   * The logger channel the action will write log messages to.
+   *
    * @var \Psr\Log\LoggerInterface
    */
   protected $logger;
@@ -76,10 +78,10 @@ class SystemSendEmail extends RulesActionBase implements ContainerFactoryPluginI
    *   The plugin implementation definition.
    * @param \Psr\Log\LoggerInterface $logger
    *   The alias storage service.
-   * @param $mail_manager
-   *   The alias mail manager service.
+   * @param \Drupal\Core\Mail\MailManagerInterface $mail_manager
+   *   The mail manager service.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, LoggerInterface $logger, $mail_manager) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, LoggerInterface $logger, MailManagerInterface $mail_manager) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->logger = $logger;
     $this->mailManager = $mail_manager;
@@ -93,22 +95,30 @@ class SystemSendEmail extends RulesActionBase implements ContainerFactoryPluginI
       $configuration,
       $plugin_id,
       $plugin_definition,
-      $container->get('logger.factory'),
+      $container->get('logger.factory')->get('rules'),
       $container->get('plugin.manager.mail')
     );
   }
 
   /**
-   * {@inheritdoc}
+   * Send a system email.
+   *
+   * @param string[] $to
+   *   Email addresses of the recipients.
+   * @param string $subject
+   *   Subject of the email.
+   * @param string $message
+   *   Email message text.
+   * @param string|null $reply
+   *   (optional) Reply to email address.
+   * @param \Drupal\Core\Language\LanguageInterface|null $language
+   *   (optional) Language code.
    */
-  public function execute() {
-    $to = $this->getContextValue('to');
-    $reply = $this->getContextValue('reply');
-    $language = $this->getContextValue('language');
+  protected function doExecute($to, $subject, $message, $reply = NULL, LanguageInterface $language = NULL) {
     $langcode = isset($language) ? $language->getId() : LanguageInterface::LANGCODE_SITE_DEFAULT;
     $params = [
-      'subject' => $this->getContextValue('subject'),
-      'message' => $this->getContextValue('message'),
+      'subject' => $subject,
+      'message' => $message,
     ];
     // Set a unique key for this mail.
     $key = 'rules_action_mail_' . $this->getPluginId();
@@ -116,7 +126,7 @@ class SystemSendEmail extends RulesActionBase implements ContainerFactoryPluginI
     $recipients = implode(', ', $to);
     $message = $this->mailManager->mail('rules', $key, $recipients, $langcode, $params, $reply);
     if ($message['result']) {
-      $this->logger->log(LogLevel::NOTICE, $this->t('Successfully sent email to %recipient', ['%recipient' => $recipients]));
+      $this->logger->notice('Successfully sent email to %recipient', ['%recipient' => $recipients]);
     }
 
   }

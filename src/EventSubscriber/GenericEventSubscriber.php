@@ -7,7 +7,9 @@
 
 namespace Drupal\rules\EventSubscriber;
 
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\rules\Engine\RulesEventManager;
+use Drupal\rules\Engine\ExecutionState;
 use Symfony\Component\EventDispatcher\Event;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\EventDispatcher\GenericEvent;
@@ -20,18 +22,28 @@ class GenericEventSubscriber implements EventSubscriberInterface {
   /**
    * The entity manager used for loading reaction rule config entities.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityManager;
+  protected $entityTypeManager;
+
+  /**
+   * The Rules event manager.
+   *
+   * @var \Drupal\rules\Engine\RulesEventManager
+   */
+  protected $eventManager;
 
   /**
    * Constructor.
    *
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
+   * @param \Drupal\rules\Engine\RulesEventManager $event_manager
+   *   The Rules event manager.
    */
-  public function __construct(EntityManagerInterface $entity_manager) {
-    $this->entityManager = $entity_manager;
+  public function __construct(EntityTypeManagerInterface $entity_type_manager, RulesEventManager $event_manager) {
+    $this->entityTypeManager = $entity_type_manager;
+    $this->eventManager = $event_manager;
   }
 
   /**
@@ -74,31 +86,40 @@ class GenericEventSubscriber implements EventSubscriberInterface {
    */
   public function onRulesEvent(Event $event, $event_name) {
     // Load reaction rule config entities by $event_name.
-    $storage = $this->entityManager->getStorage('rules_reaction_rule');
+    $storage = $this->entityTypeManager->getStorage('rules_reaction_rule');
     // @todo Only load active reaction rules here.
     $configs = $storage->loadByProperties(['event' => $event_name]);
 
-    // Loop over all rules and execute them.
-    foreach ($configs as $rules_config) {
-      $reaction_rule = $rules_config->getExpression();
-
-      $context_names = array_keys($reaction_rule->getContextDefinitions());
-      foreach ($context_names as $context_name) {
-        // If this is a GenericEvent get the context for the rule from the event
-        // arguments.
-        if ($event instanceof GenericEvent) {
-          $value = $event->getArgument($context_name);
-        }
-        // Else there must be a getter method or public property.
-        // @todo: Add support for the getter method.
-        else {
-          $value = $event->$context_name;
-        }
-        $reaction_rule->setContextValue($context_name, $value);
+    // Set up an execution state with the event context.
+    $event_definition = $this->eventManager->getDefinition($event_name);
+    $state = ExecutionState::create();
+    foreach ($event_definition['context'] as $context_name => $context_definition) {
+      // If this is a GenericEvent get the context for the rule from the event
+      // arguments.
+      if ($event instanceof GenericEvent) {
+        $value = $event->getArgument($context_name);
       }
-
-      $reaction_rule->execute();
+      // Else there must be a getter method or public property.
+      // @todo: Add support for the getter method.
+      else {
+        $value = $event->$context_name;
+      }
+      if ($event instanceof GenericEvent) {
+        $state->addVariable(
+          $context_name,
+          $context_definition,
+          $value
+        );
+      }
     }
+
+    // Loop over all rules and execute them.
+    foreach ($configs as $config) {
+      /** @var \Drupal\rules\Entity\ReactionRuleConfig $config */
+      $config->getExpression()
+        ->executeWithState($state);
+    }
+    $state->autoSave();
   }
 
 }

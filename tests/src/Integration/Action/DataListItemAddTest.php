@@ -13,7 +13,7 @@ use Drupal\Tests\rules\Integration\RulesIntegrationTestBase;
  * @coversDefaultClass \Drupal\rules\Plugin\RulesAction\DataListItemAdd
  * @group rules_actions
  */
-class DataListItemAddTest extends RulesIntegrationTestBase  {
+class DataListItemAddTest extends RulesIntegrationTestBase {
 
   /**
    * The action to be tested.
@@ -57,11 +57,11 @@ class DataListItemAddTest extends RulesIntegrationTestBase  {
 
     // The list should contain four items, with the new item at the end.
     $this->assertArrayEquals([
-        'One',
-        'Two',
-        'Three',
-        'Four'
-      ], $this->action->getContextValue('list'));
+      'One',
+      'Two',
+      'Three',
+      'Four',
+    ], $this->action->getContextValue('list'));
   }
 
   /**
@@ -82,11 +82,11 @@ class DataListItemAddTest extends RulesIntegrationTestBase  {
 
     // The list should contain four items, with the new item added at the end.
     $this->assertArrayEquals([
-        'One',
-        'Two',
-        'Three',
-        'Four'
-      ], $this->action->getContextValue('list'));
+      'One',
+      'Two',
+      'Three',
+      'Four',
+    ], $this->action->getContextValue('list'));
   }
 
   /**
@@ -107,11 +107,11 @@ class DataListItemAddTest extends RulesIntegrationTestBase  {
 
     // The list should contain four items, with the new item added at the start.
     $this->assertArrayEquals([
-        'Zero',
-        'One',
-        'Two',
-        'Three'
-      ], $this->action->getContextValue('list'));
+      'Zero',
+      'One',
+      'Two',
+      'Three',
+    ], $this->action->getContextValue('list'));
   }
 
   /**
@@ -132,11 +132,11 @@ class DataListItemAddTest extends RulesIntegrationTestBase  {
 
     // The list should remain the same.
     $this->assertArrayEquals([
-        'One',
-        'Two',
-        'Three',
-        'Four'
-      ], $this->action->getContextValue('list'));
+      'One',
+      'Two',
+      'Three',
+      'Four',
+    ], $this->action->getContextValue('list'));
   }
 
   /**
@@ -159,4 +159,5 @@ class DataListItemAddTest extends RulesIntegrationTestBase  {
     // The list should contain five items, with the new item added at the end.
     $this->assertArrayEquals(['One', 'Two', 'Three', 'Four', 'Four'], $this->action->getContextValue('list'));
   }
+
 }

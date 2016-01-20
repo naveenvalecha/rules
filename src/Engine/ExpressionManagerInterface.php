@@ -26,17 +26,6 @@ interface ExpressionManagerInterface extends PluginManagerInterface {
   public function createRule(array $configuration = []);
 
   /**
-   * Creates a new reaction rule.
-   *
-   * @param array $configuration
-   *   The configuration array to create the plugin instance with.
-   *
-   * @return \Drupal\rules\Plugin\RulesExpression\RuleInterface
-   *   The created reaction rule.
-   */
-  public function createReactionRule(array $configuration = []);
-
-  /**
    * Creates a new action expression.
    *
    * @param string $id
@@ -73,4 +62,5 @@ interface ExpressionManagerInterface extends PluginManagerInterface {
    *   The created 'or' condition container.
    */
   public function createOr();
+
 }

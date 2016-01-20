@@ -11,11 +11,12 @@ use Drupal\Core\Executable\ExecutableInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\rules\Context\ContextAwarePluginInterface;
 use Drupal\rules\Context\ContextProviderInterface;
+use Drupal\rules\Core\ConfigurationAccessControlInterface;
 
 /**
  * Extends the core ActionInterface to provide context.
  */
-interface RulesActionInterface extends ExecutableInterface, ContextAwarePluginInterface, ContextProviderInterface {
+interface RulesActionInterface extends ExecutableInterface, ContextAwarePluginInterface, ContextProviderInterface, ConfigurationAccessControlInterface {
 
   /**
    * Returns a list of context names that should be auto-saved after execution.
@@ -45,4 +46,5 @@ interface RulesActionInterface extends ExecutableInterface, ContextAwarePluginIn
    *   access is either explicitly forbidden or "no opinion".
    */
   public function access($object, AccountInterface $account = NULL, $return_as_object = FALSE);
+
 }

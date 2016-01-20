@@ -20,11 +20,15 @@ class RulesActionBaseTest extends RulesUnitTestBase {
    * Tests that a missing label throwa an exception.
    *
    * @expectedException \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+   *
    * @covers ::summary
    */
   public function testSummaryThrowingException() {
-    $rulesActionBase = $this->getMockForAbstractClass(RulesActionBase::class, [[], '', '']);
-    $rulesActionBase->summary();
+    $rules_action_base = $this->getMockForAbstractClass(
+      RulesActionBase::class,
+      [[], '', '']
+    );
+    $rules_action_base->summary();
   }
 
   /**
@@ -33,8 +37,11 @@ class RulesActionBaseTest extends RulesUnitTestBase {
    * @covers ::summary
    */
   public function testSummaryParsingTheLabelAnnotation() {
-    $rulesActionBase = $this->getMockForAbstractClass(RulesActionBase::class, [[], '', ['label' => 'something']]);
-    $this->assertEquals('something', $rulesActionBase->summary());
+    $rules_action_base = $this->getMockForAbstractClass(
+      RulesActionBase::class,
+      [[], '', ['label' => 'something']]
+    );
+    $this->assertEquals('something', $rules_action_base->summary());
   }
 
   /**
@@ -45,8 +52,11 @@ class RulesActionBaseTest extends RulesUnitTestBase {
   public function testTranslatedLabel() {
     $translation_wrapper = $this->prophesize(TranslationWrapper::class);
     $translation_wrapper->__toString()->willReturn('something');
-    $rulesActionBase = $this->getMockForAbstractClass(RulesActionBase::class, [[], '', ['label' => $translation_wrapper->reveal()]]);
-    $this->assertEquals('something', $rulesActionBase->summary());
+    $rules_action_base = $this->getMockForAbstractClass(
+      RulesActionBase::class,
+      [[], '', ['label' => $translation_wrapper->reveal()]]
+    );
+    $this->assertEquals('something', $rules_action_base->summary());
   }
 
 }

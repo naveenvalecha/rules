@@ -7,9 +7,9 @@
 
 namespace Drupal\rules\Context;
 
-use Drupal\Component\Utility\SafeMarkup;
+use Drupal\Core\Plugin\Context\Context;
 use Drupal\Core\Plugin\ContextAwarePluginInterface as CoreContextAwarePluginInterface;
-use Drupal\rules\Engine\RulesStateInterface;
+use Drupal\rules\Engine\ExecutionStateInterface;
 use Drupal\rules\Exception\RulesEvaluationException;
 
 /**
@@ -34,46 +34,44 @@ trait ContextHandlerTrait {
    *
    * @param \Drupal\Core\Plugin\ContextAwarePluginInterface $plugin
    *   The plugin that is populated with context values.
-   * @param \Drupal\rules\Engine\RulesStateInterface $state
+   * @param \Drupal\rules\Engine\ExecutionStateInterface $state
    *   The Rules state containing available variables.
    *
    * @throws \Drupal\rules\Exception\RulesEvaluationException
    *   In case a required context is missing for the plugin.
    */
-  protected function mapContext(CoreContextAwarePluginInterface $plugin, RulesStateInterface $state) {
+  protected function mapContext(CoreContextAwarePluginInterface $plugin, ExecutionStateInterface $state) {
     $context_definitions = $plugin->getContextDefinitions();
     foreach ($context_definitions as $name => $definition) {
       // Check if a data selector is configured that maps to the state.
       if (isset($this->configuration['context_mapping'][$name])) {
-        $typed_data = $state->applyDataSelector($this->configuration['context_mapping'][$name]);
+        $typed_data = $state->fetchByPropertyPath($this->configuration['context_mapping'][$name]);
 
         if ($typed_data->getValue() === NULL && !$definition->isAllowedNull()) {
-          throw new RulesEvaluationException(SafeMarkup::format('The value of data selector @selector is NULL, but the context @name in @plugin requires a value.', [
-            '@selector' => $this->configuration['context_mapping'][$name],
-            '@name' => $name,
-            '@plugin' => $plugin->getPluginId(),
-          ]));
+          throw new RulesEvaluationException('The value of data selector '
+            . $this->configuration['context_mapping'][$name] . " is NULL, but the context $name in "
+            . $plugin->getPluginId() . ' requires a value.');
         }
-        $plugin->getContext($name)->setContextData($typed_data);
+        $context = $plugin->getContext($name);
+        $new_context = Context::createFromContext($context, $typed_data);
+        $plugin->setContext($name, $new_context);
       }
       elseif (isset($this->configuration['context_values'])
         && array_key_exists($name, $this->configuration['context_values'])
       ) {
 
         if ($this->configuration['context_values'][$name] === NULL && !$definition->isAllowedNull()) {
-          throw new RulesEvaluationException(SafeMarkup::format('The context value for @name is NULL, but the context @name in @plugin requires a value.', [
-            '@name' => $name,
-            '@plugin' => $plugin->getPluginId(),
-          ]));
+          throw new RulesEvaluationException("The context value for $name is NULL, but the context $name in "
+            . $plugin->getPluginId() . ' requires a value.');
         }
 
-        $plugin->getContext($name)->setContextValue($this->configuration['context_values'][$name]);
+        $context = $plugin->getContext($name);
+        $new_context = Context::createFromContext($context, $this->configuration['context_values'][$name]);
+        $plugin->setContext($name, $new_context);
       }
       elseif ($definition->isRequired()) {
-        throw new RulesEvaluationException(SafeMarkup::format('Required context @name is missing for plugin @plugin.', [
-          '@name' => $name,
-          '@plugin' => $plugin->getPluginId(),
-        ]));
+        throw new RulesEvaluationException("Required context $name is missing for plugin "
+          . $plugin->getPluginId() . '.');
       }
     }
   }
@@ -83,19 +81,19 @@ trait ContextHandlerTrait {
    *
    * @param ContextProviderInterface $plugin
    *   The plugin where the context values are extracted.
-   * @param \Drupal\rules\Engine\RulesStateInterface $state
+   * @param \Drupal\rules\Engine\ExecutionStateInterface $state
    *   The Rules state where the context variables are added.
    */
-  protected function mapProvidedContext(ContextProviderInterface $plugin, RulesStateInterface $state) {
+  protected function mapProvidedContext(ContextProviderInterface $plugin, ExecutionStateInterface $state) {
     $provides = $plugin->getProvidedContextDefinitions();
     foreach ($provides as $name => $provided_definition) {
       // Avoid name collisions in the rules state: provided variables can be
       // renamed.
       if (isset($this->configuration['provides_mapping'][$name])) {
-        $state->addVariable($this->configuration['provides_mapping'][$name], $plugin->getProvidedContext($name));
+        $state->addVariableData($this->configuration['provides_mapping'][$name], $plugin->getProvidedContext($name)->getContextData());
       }
       else {
-        $state->addVariable($name, $plugin->getProvidedContext($name));
+        $state->addVariableData($name, $plugin->getProvidedContext($name)->getContextData());
       }
     }
   }
@@ -105,10 +103,10 @@ trait ContextHandlerTrait {
    *
    * @param \Drupal\Core\Plugin\ContextAwarePluginInterface $plugin
    *   The plugin to process the context data on.
-   * @param \Drupal\rules\Engine\RulesStateInterface $rules_state
+   * @param \Drupal\rules\Engine\ExecutionStateInterface $rules_state
    *   The current Rules execution state with context variables.
    */
-  protected function processData(CoreContextAwarePluginInterface $plugin, RulesStateInterface $rules_state) {
+  protected function processData(CoreContextAwarePluginInterface $plugin, ExecutionStateInterface $rules_state) {
     if (isset($this->configuration['context_processors'])) {
       foreach ($this->configuration['context_processors'] as $context_name => $processors) {
         $value = $plugin->getContextValue($context_name);
