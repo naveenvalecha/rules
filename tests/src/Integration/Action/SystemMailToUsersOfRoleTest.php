@@ -8,6 +8,7 @@
 namespace Drupal\Tests\rules\Integration\Action;
 
 use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Tests\rules\Integration\RulesEntityIntegrationTestBase;
 use Drupal\Component\Utility\SafeMarkup;
 use Drupal\Core\Language\LanguageInterface;
@@ -26,26 +27,36 @@ use Psr\Log\LoggerInterface;
 class SystemMailToUsersOfRoleTest extends RulesEntityIntegrationTestBase {
 
   /**
-   * @var \Psr\Log\LoggerInterface
+   * A mocked logger.
+   *
+   * @var \Psr\Log\LoggerInterface|\Prophecy\Prophecy\ProphecyInterface
    */
   protected $logger;
 
   /**
-   * @var \Drupal\Core\Mail\MailManagerInterface
+   * A mocked mail manager.
+   *
+   * @var \Drupal\Core\Mail\MailManagerInterface|\Prophecy\Prophecy\ProphecyInterface
    */
   protected $mailManager;
 
   /**
-   * @var \Drupal\user\UserStorage
+   * A mocked user storage.
+   *
+   * @var \Drupal\user\UserStorageInterface|\Prophecy\Prophecy\ProphecyInterface
    */
   protected $userStorage;
 
   /**
+   * Roles to send emails.
+   *
    * @var \Drupal\user\Entity\Role[]
    */
   protected $roles;
 
   /**
+   * User to send emails.
+   *
    * @var \Drupal\user\Entity\User[]
    */
   protected $users;
@@ -63,58 +74,63 @@ class SystemMailToUsersOfRoleTest extends RulesEntityIntegrationTestBase {
   public function setUp() {
     parent::setUp();
     $this->enableModule('user');
-    // @todo why is that line needed? Please add a comment.
-    $this->namespaces[] = '';
+    $test_email='admin@example.com';
 
     // Create two user roles and one user for each.
     $uid = 1;
     foreach (['administrator', 'editor'] as $role_name) {
 
       // Mock the role entity.
-      $roleEntity = $this->prophesize(RoleInterface::class);
-      $roleEntity->id()
+      $role_mock = $this->prophesize(RoleInterface::class);
+      $role_mock->id()
         ->willReturn($role_name);
-      $this->roles[] = $roleEntity->reveal();
+      $this->roles[] = $role_mock->reveal();
 
       // Mock the user entity.
-      $user = $this->prophesizeEntity(UserInterface::class);
-      $user->id()->willReturn($uid);
+      $user_mock = $this->prophesizeEntity(UserInterface::class);
+      $user_mock->id()->willReturn($uid);
 
-      $userEntityType = $this->prophesize(EntityTypeInterface::class);
-      $user->getEntityType()
-        ->willReturn($userEntityType->reveal());
+      $user_entity_type = $this->prophesize(EntityTypeInterface::class);
+      $user_mock->getEntityType()
+        ->willReturn($user_entity_type->reveal());
 
-      $user->getPreferredLangcode()
+      $user_mock->getPreferredLangcode()
         ->willReturn(LanguageInterface::LANGCODE_SITE_DEFAULT);
 
-      $this->users[$uid] = $user->reveal();
+      $user_mock->getEmail()
+        ->willReturn($test_email);
+
+      $this->users[$uid] = $user_mock->reveal();
       $uid++;
     }
 
     $this->logger = $this->prophesize(LoggerInterface::class);
+    $logger_factory = $this->prophesize(LoggerChannelFactoryInterface::class);
+    $logger_factory->get('rules')->willReturn($this->logger->reveal());
+
     $this->mailManager = $this->prophesize(MailManagerInterface::class);
     $this->userStorage = $this->prophesize(UserStorageInterface::class);
-
 
     // Mocked entityManager.
     $this->entityManager = $this->prophesize(EntityManagerInterface::class);
 
-    $this->entityManager->getStorage()
+    $this->entityManager->getStorage('user')
       ->willReturn($this->userStorage->reveal());
 
     $this->entityManager->createInstance()
       ->willReturn($this->userStorage->reveal());
 
     // Prepare a user entity type instance.
-    $entityType = reset($this->users)->getEntityType();
+    $entity_type = reset($this->users)->getEntityType();
     $this->entityManager->getDefinitions()
-      ->willReturn($entityType);
+      ->willReturn($entity_type);
 
-    $this->container->set('logger.factory', $this->logger->reveal());
+    // @todo this is wrong, the logger is no factory.
+    $this->container->set('logger.factory', $logger_factory->reveal());
     $this->container->set('plugin.manager.mail', $this->mailManager->reveal());
     $config = [
       'system.site' => [
-        'mail' => 'admin@example.com',
+        'mail' => $test_email,
       ],
     ];
     $this->container->set('config.factory', $this->getConfigFactoryStub($config));
@@ -171,27 +187,25 @@ class SystemMailToUsersOfRoleTest extends RulesEntityIntegrationTestBase {
    *   The array of Role objects to send the email to.
    * @param \Drupal\user\Entity\User[] $users
    *   The array of users that should get this email.
-   *
    */
   private function helperSendMailToRole($call_number, $roles, $users) {
-    $rids = [];
-    foreach ($roles as $role) {
-      $rids[] = $role->id();
-    }
-    $this->action->setContextValue('roles', $roles)
-      ->setContextValue('subject', 'subject')
-      ->setContextValue('body', 'hello');
-
-    $langcode = reset($users)->getPreferredLangcode();
-    $params = [
-      'subject' => $this->action->getContextValue('subject'),
-      'body' => $this->action->getContextValue('body'),
-    ];
 
     $this->userStorage
       ->loadByProperties(['roles' => $roles])
       ->willReturn($users)
       ->shouldBeCalledTimes(1);
+
+    $params = [
+      'subject' => 'subject',
+      'body' => 'hello',
+    ];
+
+    $langcode = reset($users)->getPreferredLangcode();
+
+    $rids = [];
+    foreach ($roles as $role) {
+      $rids[] = $role->id();
+    }
 
     foreach ($users as $user) {
       $this->mailManager->mail('rules', $this->action->getPluginId(), $user->getEmail(), $langcode, $params)
@@ -200,9 +214,13 @@ class SystemMailToUsersOfRoleTest extends RulesEntityIntegrationTestBase {
 
       $this->logger->notice(SafeMarkup::format('Successfully sent email to the role(s) %roles.', ['%roles' => implode(', ', $rids)]))
         ->shouldBeCalledTimes($call_number);
-
     }
-    $this->action->execute();
+
+    $this->action
+      ->setContextValue('roles', $roles)
+      ->setContextValue('subject', $params['subject'])
+      ->setContextValue('body', $params['body'])
+      ->execute();
   }
 
   /**
@@ -217,4 +235,5 @@ class SystemMailToUsersOfRoleTest extends RulesEntityIntegrationTestBase {
       ['never', 2],
     ];
   }
+
 }

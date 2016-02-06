@@ -10,10 +10,11 @@ namespace Drupal\rules\Plugin\RulesAction;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Mail\MailManagerInterface;
 use Drupal\rules\Core\RulesActionBase;
+use Drupal\user\UserStorageInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Config\ImmutableConfig;
-use Drupal\user\UserStorage;
+
 
 /**
  * Provides a 'Mail to users of a role' action.
@@ -49,21 +50,29 @@ use Drupal\user\UserStorage;
 class SystemMailToUsersOfRole extends RulesActionBase implements ContainerFactoryPluginInterface {
 
   /**
+   * The logger channel the action will write log messages to.
+   *
    * @var \Psr\Log\LoggerInterface
    */
   protected $logger;
 
   /**
+   * Mail manager.
+   *
    * @var \Drupal\Core\Mail\MailManagerInterface
    */
   protected $mailManager;
 
   /**
+   * The site configuration.
+   *
    * @var \Drupal\Core\Config\ImmutableConfig
    */
   protected $config;
 
   /**
+   * The user storage service.
+   *
    * @var \Drupal\user\UserStorage
    */
   protected $userStorage;
@@ -83,15 +92,15 @@ class SystemMailToUsersOfRole extends RulesActionBase implements ContainerFactor
    *   The mail manager service.
    * @param \Drupal\Core\Config\ImmutableConfig $site_config
    *   The site configuration.
-   * @param \Drupal\user\UserStorage $userStorage
+   * @param \Drupal\user\UserStorage $user_storage
    *   The user storage service.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, LoggerInterface $logger, MailManagerInterface $mail_manager, ImmutableConfig $site_config, UserStorage $userStorage) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, LoggerInterface $logger, MailManagerInterface $mail_manager, ImmutableConfig $site_config, UserStorageInterface $user_storage) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->logger = $logger;
     $this->mailManager = $mail_manager;
     $this->config = $site_config;
-    $this->userStorage = $userStorage;
+    $this->userStorage = $user_storage;
   }
 
   /**
@@ -104,17 +113,24 @@ class SystemMailToUsersOfRole extends RulesActionBase implements ContainerFactor
       $plugin_definition,
       $container->get('logger.factory')->get('rules'),
       $container->get('plugin.manager.mail'),
-      \Drupal::config('system.site'),
+      $container->get('config.factory')->get('system.site'),
       $container->get('entity.manager')->getStorage('user')
     );
   }
 
   /**
-   * {@inheritdoc}
+   * Send a mail to users of a role.
+   *
+   * @param \Drupal\user\RoleInterface[] $roles
+   *   Array of UserRoles to assign.
+   * @param string $subject
+   *   Subject of the email.
+   * @param string $body
+   *   Email message text.
+   * @param string $from
+   *   Email from address.
    */
-  public function execute() {
-    $roles = $this->getContextValue('roles');
-
+  protected function doExecute(array $roles, $subject, $body, $from) {
     // Get the role ids and remove the empty ones (in case for example the role
     // has been removed in the meantime).
     $rids = array_filter(array_map(function ($role) {
@@ -127,11 +143,11 @@ class SystemMailToUsersOfRole extends RulesActionBase implements ContainerFactor
     // Get now all the users that match the roles (at least one of the role).
     $accounts = $this->userStorage
       ->loadByProperties(['roles' => $roles]);
-    $params = array(
-      'subject' => $this->getContextValue('subject'),
-      'body' => $this->getContextValue('body'),
-    );
-    $from = $this->getContextValue('from');
+    $params = [
+      'subject' => $subject,
+      'body' => $body,
+    ];
+
     if (empty($from)) {
       $from = $this->config->get('mail');
     }
@@ -147,10 +163,11 @@ class SystemMailToUsersOfRole extends RulesActionBase implements ContainerFactor
       if ($message['result'] === FALSE) {
         break;
       }
-
     }
+
     if ($message['result'] !== FALSE) {
-      $this->logger->notice($this->t('Successfully sent email to the role(s) %roles.', array('%roles' => implode(', ', $rids))));
+      $this->logger->notice($this->t('Successfully sent email to the role(s) %roles.', ['%roles' => implode(', ', $rids)]));
     }
   }
+
 }
