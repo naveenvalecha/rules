@@ -61,8 +61,8 @@ class AddExpressionForm extends FormBase {
   /**
    * {@inheritdoc}
    */
-  public function buildForm(array $form, FormStateInterface $form_state, ReactionRuleConfig $reaction_config = NULL, $expression_id = NULL) {
-    $this->ruleConfig = $reaction_config;
+  public function buildForm(array $form, FormStateInterface $form_state, ReactionRuleConfig $rules_reaction_rule = NULL, $expression_id = NULL) {
+    $this->ruleConfig = $rules_reaction_rule;
     $this->expressionId = $expression_id;
 
     $expression = $this->expressionManager->createInstance($expression_id);
@@ -84,12 +84,9 @@ class AddExpressionForm extends FormBase {
   public function validateForm(array &$form, FormStateInterface $form_state) {
     $this->lockValidateForm($form, $form_state);
 
-    // In order to validdate the whole rule we need to invoke the submission
-    // handler of the expression form. That way the expression is changed and we
-    // can validate the change for integrity afterwards.
     $expression = $this->expressionManager->createInstance($this->expressionId);
     $form_handler = $expression->getFormHandler();
-    $form_handler->submitForm($form, $form_state);
+    $form_handler->validateForm($form, $form_state);
 
     $validation_config = clone $this->ruleConfig;
     $rule_expression = $validation_config->getExpression();
@@ -129,7 +126,7 @@ class AddExpressionForm extends FormBase {
   /**
    * Provides the page title on the form.
    */
-  public function getTitle(ReactionRuleConfig $reaction_config, $expression_id) {
+  public function getTitle(ReactionRuleConfig $rules_reaction_rule, $expression_id) {
     $expression = $this->expressionManager->createInstance($expression_id);
     return $this->t('Add @expression', ['@expression' => $expression->getLabel()]);
   }
