@@ -114,7 +114,7 @@ class SystemMailToUsersOfRole extends RulesActionBase implements ContainerFactor
       $container->get('logger.factory')->get('rules'),
       $container->get('plugin.manager.mail'),
       $container->get('config.factory')->get('system.site'),
-      $container->get('entity.manager')->getStorage('user')
+      $container->get('entity_type.manager')->getStorage('user')
     );
   }
 
@@ -143,6 +143,12 @@ class SystemMailToUsersOfRole extends RulesActionBase implements ContainerFactor
     // Get now all the users that match the roles (at least one of the role).
     $accounts = $this->userStorage
       ->loadByProperties(['roles' => $roles]);
+
+    // If we don't have any users with that role, don't bother doing the rest.
+    if (empty($accounts)) {
+      return;
+    }
+
     $params = [
       'subject' => $subject,
       'body' => $body,
@@ -166,7 +172,7 @@ class SystemMailToUsersOfRole extends RulesActionBase implements ContainerFactor
     }
 
     if ($message['result'] !== FALSE) {
-      $this->logger->notice($this->t('Successfully sent email to the role(s) %roles.', ['%roles' => implode(', ', $rids)]));
+      $this->logger->notice('Successfully sent email to the role(s) %roles.', ['%roles' => implode(', ', $rids)]);
     }
   }
 
