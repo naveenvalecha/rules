@@ -92,7 +92,7 @@ class SystemMailToUsersOfRole extends RulesActionBase implements ContainerFactor
    *   The mail manager service.
    * @param \Drupal\Core\Config\ImmutableConfig $site_config
    *   The site configuration.
-   * @param \Drupal\user\UserStorage $user_storage
+   * @param \Drupal\user\UserStorageInterface $user_storage
    *   The user storage service.
    */
   public function __construct(array $configuration, $plugin_id, $plugin_definition, LoggerInterface $logger, MailManagerInterface $mail_manager, ImmutableConfig $site_config, UserStorageInterface $user_storage) {
