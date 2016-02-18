@@ -128,7 +128,6 @@ class SystemMailToUsersOfRoleTest extends RulesEntityIntegrationTestBase {
       ],
     ];
     $this->container->set('config.factory', $this->getConfigFactoryStub($config));
-    $this->container->set('entity_type.manager', $this->entityTypeManager->reveal());
 
     $this->action = $this->actionManager->createInstance('rules_mail_to_users_of_role');
   }
@@ -218,7 +217,6 @@ class SystemMailToUsersOfRoleTest extends RulesEntityIntegrationTestBase {
       $role_mock = $this->prophesize(RoleInterface::class);
       $role_mock->id()
         ->willReturn($role_name);
-      $roles[] = $role_mock->reveal();
     }
     // Test sending one or zero email to one or two roles.
     return [
